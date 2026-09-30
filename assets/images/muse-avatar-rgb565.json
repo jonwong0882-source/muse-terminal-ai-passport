@@ -1,0 +1,21 @@
+{
+  "source": "muse-avatar-source.mp4",
+  "source_sha256": "ace1b168a5cb90ac8f8c6316961aef6d8ccfdb3c3a8754057d995199365f6b2f",
+  "output_sha256": "b9916fa29f274ec6f4896e4cccf45f73f9cab0ad7098293920692edcef45dc6f",
+  "format": "RGB565 little-endian",
+  "full_frames": 20,
+  "full_size": [
+    240,
+    240
+  ],
+  "full_fps": 4,
+  "compact_size": [
+    100,
+    100
+  ],
+  "record_size": [
+    164,
+    164
+  ],
+  "bytes": 2377792
+}

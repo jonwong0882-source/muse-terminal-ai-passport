@@ -1,0 +1,5 @@
+*.bin binary
+*.otf binary
+*.png binary
+*.jpg binary
+assets/fonts/muse_font_16.c -whitespace

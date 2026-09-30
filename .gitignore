@@ -1,0 +1,12 @@
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+*.pem
+pairing.json
+browser-profile/
