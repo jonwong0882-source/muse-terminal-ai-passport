@@ -9,6 +9,8 @@
 
 先读仓库 README.zh_CN.md 和 docs/muse-terminal.zh_CN.md。下载最新 Release 的 muse-terminal-community-package.zip，检查 ZIP 完整性和 SHA256SUMS.json 里每个文件的哈希；核对 firmware/FoloToy-AI-Passport-full.bin 是从 0x0 刷写的合并镜像。当前说明对应固件 SHA-256 为 ef16688d7de00035e94ddc607ec5265f4f1fb8105ae0141e3d4e1fb7b3714fc9。若最新 Release 不同，先报告版本差异，不要悄悄刷写。
 
+如果你的运行环境有沙箱限制——不能在项目目录之外创建虚拟环境，或不能打开终端窗口、不能执行 .command 脚本——请把对应命令原样交给我手动执行并说明原因；不要静默失败，不要跳过步骤，也不要用别的方式绕过。
+
 检查 Mac 是否有 Python 3.11+、Chrome、可用的 2.4 GHz Wi-Fi 和 USB 数据线；缺少软件时使用官方来源。创建项目专用虚拟环境，安装 source/companion/requirements.txt 和 esptool。让我提供自己的 Muse 会话网址，并在专用 Chrome 窗口亲自登录；不要索取、查看或记录密码和验证码。启动 Python 桥接，等本机 /health 的 speech_ready、muse_ready 都为 true。
 
 发现 Passport 的真实 /dev/cu.usbmodem* 端口；若有多个候选，请我选择。刷机前展示设备、端口、固件文件和 SHA-256，并明确问我是否同意刷写；没有我确认，不烧录，也不执行全片擦除。获准后从 0x0 刷入合并固件，检查校验和启动结果。

@@ -24,17 +24,58 @@
 
 ## Mac 桥接
 
-使用 macOS 和 Python 3.11+。Python 桥接通过 Playwright 启动独立的 Chrome
-窗口，**无需 Chrome 扩展**。在项目目录安装固定版本依赖：
+使用 macOS 和 Python 3.11+（**macOS 自带的 `python3` 通常是 3.9，不满足要求**）。
+Python 桥接通过 Playwright 启动独立的 Chrome
+窗口，**无需 Chrome 扩展**；它直接调用你已安装的系统 Chrome，因此也**不需要**
+执行 `playwright install`，不会额外下载 Chromium。
+
+虚拟环境、配对令牌、TLS 证书和浏览器资料统一放在同一处：
+
+```
+~/Library/Application Support/MuseTerminal/
+```
+
+在解压出的 `source` 目录安装固定版本依赖：
 
 ```bash
-python3.11 -m venv "$HOME/esp/muse-bridge-venv"
-"$HOME/esp/muse-bridge-venv/bin/pip" install -r companion/requirements.txt
-./companion/start.command --muse-url https://muse.ai/thread/YOUR_THREAD_ID
+python3.13 -m venv "$HOME/Library/Application Support/MuseTerminal/venv"
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" -m pip install \
+  -r companion/requirements.txt
+```
+
+`esptool` 只在刷写固件时需要，单独安装 —— PyPI 上它只提供源码包，个别 pip 版本
+解包会报错，部分国内镜像也没有这个包，所以不放进 `requirements.txt`：
+
+```bash
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" -m pip install \
+  -r companion/requirements-flash.txt
+# 失败时改用官方源重试：
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" -m pip install \
+  --no-cache-dir --index-url https://pypi.org/simple esptool
+```
+
+启动桥接。`start.command` 会自动挑选一个 3.11+ 的解释器并补齐依赖；它从 Git
+仓库克隆或源码 ZIP 得到时**不带可执行权限**，必要时先 `chmod +x`：
+
+```bash
+MUSE_VENV="$HOME/Library/Application Support/MuseTerminal/venv" \
+  ./companion/start.command --muse-url https://muse.ai/thread/YOUR_THREAD_ID
+```
+
+在无法打开终端窗口的自动化环境（例如受沙箱限制的 AI Agent）里，直接运行桥接
+本体，效果相同。`bridge.py` 支持 `--muse-url`（也可用环境变量 `MUSE_URL`）、
+`--state`（默认 `~/Library/Application Support/MuseTerminal`）、
+`--model`（默认 `base`）和 `--bind`：
+
+```bash
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" companion/bridge.py \
+  --muse-url https://muse.ai/thread/YOUR_THREAD_ID
 ```
 
 首次启动会下载多语言 faster-whisper `base` 模型，之后在 Mac 本地识别，
-无需云端语音识别密钥。下载较大的模型后可用 `--model small`。录音只暂存
+无需云端语音识别密钥。国内网络长时间卡在下载时，先导出
+`HF_ENDPOINT=https://hf-mirror.com` 再启动（`start.command` 已默认导出
+`HF_HUB_DISABLE_XET=1`，直接运行 `bridge.py` 时请自行导出）。下载较大的模型后可用 `--model small`。录音只暂存
 于有长度上限的内存，不建立录音档案；Muse 回复仅显示文字。
 
 桥接会用 Playwright 打开专用 Chrome 窗口，其独立资料目录位于
@@ -56,14 +97,30 @@ Muse 登录状态，不要公开或复制。旧的 `companion/extension` 文件�
 
 ### 给已刷好固件的终端配网
 
-查出真实 USB 串口后运行：
+先确认端口。插上 Passport 后运行下面命令，厂商为 Espressif 的那个才是目标设备；
+只有一个 `/dev/cu.usbmodem*` 时可直接使用：
 
 ```bash
-"$HOME/esp/muse-bridge-venv/bin/python" companion/configure.py \
+system_profiler SPUSBDataType | grep -A 6 -i espressif
+```
+
+配网**必须在桥接成功启动过一次之后**进行：`configure.py` 会从桥接的状态目录读取
+配对令牌和 TLS 证书，桥接从未运行过会导致配网失败。
+
+```bash
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" companion/configure.py \
   --port /dev/cu.usbmodemYOUR_DEVICE --host YOUR_MAC_LAN_IP
 ```
 
-工具提示输入 2.4 GHz Wi-Fi 名称，并隐藏密码输入；通过 USB 发送配置，收到设备确认后，设备重启。此工具不刷机、不擦除设备。凭据、令牌和证书保存在设备 `muse` NVS 命名空间中，不嵌入固件。Wi-Fi 或 Mac 地址变化后重新配网。本版普通 NVS 不防止具备物理访问条件的 Flash 读取。
+工具提示输入 2.4 GHz Wi-Fi 名称，并隐藏密码输入；通过 USB 发送配置，收到设备确认后，设备重启。此工具不刷机、不擦除设备。凭据、令牌和证书保存在设备 `muse` NVS 命名空间中，不嵌入固件。
+
+两点容易踩的坑：
+
+- **终端只支持 2.4 GHz**。若路由器把两个频段暴露成不同 SSID，选错 5 GHz 时工具
+  仍会收到确认并打印"配网已保存"，但设备之后连不上，属于静默失败。
+- `--host` 会被写进设备配置长期使用，建议在路由器里把该地址设为 DHCP 保留。
+  **Wi-Fi 或 Mac 的 IP / MAC 地址变化后必须重新配网**，但不需要重刷固件。
+  本版普通 NVS 不防止具备物理访问条件的 Flash 读取。
 
 ## 构建、验证和固件
 
@@ -74,16 +131,63 @@ Muse 登录状态，不要公开或复制。旧的 `companion/extension` 文件�
 python3 tools/archive_firmware.py verify build/firmware/FULL_IMAGE_SHA256
 ```
 
-验证后的合并固件位于 `build/FoloToy-AI-Passport-full.bin`，从 **0x0** 刷写。匹配的 ELF、MAP、分段镜像和清单保存在 `build/firmware/<sha256>/`。合并刷写可能重置 NVS，包括 Wi-Fi 和配对设置。必须获得明确确认后才可烧录；上述命令不刷机，也不执行全片擦除。
+验证后的合并固件位于 `build/FoloToy-AI-Passport-full.bin`，从 **0x0** 刷写。匹配的 ELF、MAP、分段镜像和清单保存在 `build/firmware/<sha256>/`。合并镜像会覆盖设备的 NVS 区，**Wi-Fi 与配对设置会丢失**，刷完必须重新配网。必须获得明确确认后才可烧录；上述命令不刷机，也不执行全片擦除。
 
 额外桥接检查：
 
 ```bash
-"$HOME/esp/muse-bridge-venv/bin/python" tests/test_muse_integration.py
-"$HOME/esp/muse-bridge-venv/bin/python" -m unittest tests.test_muse_web
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" tests/test_muse_integration.py
+"$HOME/Library/Application Support/MuseTerminal/venv/bin/python" -m unittest tests.test_muse_web
 ```
 
 TLS 集成测试模拟设备，Python 浏览器测试使用隔离的模拟页面；两者都不能证明真实 Muse 登录页或麦克风效果。应用 LVGL 主机渲染器位于 `tests/muse_sim`，使用锁定版本的托管 LVGL 源码。它渲染八种状态，并针对完整[字符清单](../assets/fonts/muse-glyphs.json)检查真实字形描述。清单外字符会明确提示；详见[字库来源和许可](../assets/README.zh_CN.md)。
+
+## 故障排查
+
+### 终端一直显示"请检查 Mac 桥接与 Muse 网页"
+
+先读 `http://127.0.0.1:18765/health`。
+
+| 现象 | 原因与处置 |
+| --- | --- |
+| `speech_ready=false` | 语音模型未就绪。国内网络先 `export HF_ENDPOINT=https://hf-mirror.com` 再启动桥接。 |
+| `muse_ready=false`，`muse_reason=sign_in_or_wrong_page` | 专用 Chrome 窗口未登录、不在 `--muse-url` 指定的会话页，或输入框非空。 |
+| 两个 ready 都是 `true` 但终端连不上 | 见下面两节。 |
+
+### `muse_reason` 反复变成 `browser_Error`
+
+首次启动时 muse.ai 会先跳到人机校验页（`?aymh_complete=1`）再跳回，导航在该过程中
+可能抛异常（页面执行上下文被销毁）。异常路径会关闭浏览器上下文，并可能**残留
+`browser-profile/SingletonLock`**；该 symlink 指向的是已退出的 PID，此后每次
+`launch_persistent_context` 都会失败，形成每 5 秒重试一次的死循环，两个 ready 永远
+上不去。
+
+桥接在每次启动浏览器前会调用 `clear_stale_profile_lock()`，清理指向已退出进程的
+残留锁。若仍有报错，手动处理（先停掉桥接）：
+
+```bash
+rm -f "$HOME/Library/Application Support/MuseTerminal/browser-profile/SingletonLock"
+```
+
+然后重新启动桥接。
+
+### 如何确认终端真的连上了 Mac
+
+`/health` 只反映 Mac 侧状态（`speech_ready` / `muse_ready` / `muse_reason` /
+`job_active`），不含设备侧信息。确认设备已连接需要在 Mac 上观察 18766 端口的
+TLS 连接：
+
+```bash
+lsof -nP -iTCP:18766 | grep ESTABLISHED
+```
+
+正常情况下应看到一条从本机 IP:18766 指向设备 IP 的 ESTABLISHED 记录。设备侧 IP
+可通过 `arp -an` 反查（其 MAC 即刷机时 `esptool flash-id` 读出的芯片 MAC）。
+
+### "配网已保存"但设备连不上
+
+- 确认选的是 2.4 GHz（见上文配网章节）。
+- 确认 Mac 的局域网 IP 未变化；变过就重新配网。
 
 ## 获准刷机后的真机验收
 

@@ -9,6 +9,8 @@ Help me install Muse Terminal from https://github.com/jonwong0882-source/muse-te
 
 Read README.md and docs/muse-terminal.md. Download the latest Release's muse-terminal-community-package.zip. Check ZIP integrity and every file against SHA256SUMS.json. Confirm firmware/FoloToy-AI-Passport-full.bin is a merged image for flashing at 0x0. The image described here has SHA-256 ef16688d7de00035e94ddc607ec5265f4f1fb8105ae0141e3d4e1fb7b3714fc9. If the latest Release differs, explain the version difference before flashing.
 
+If your runtime is sandboxed — it cannot create a virtual environment outside the project directory, or cannot open a terminal window or run a .command script — hand me the exact command to run myself and say why. Do not fail silently, do not skip the step, and do not work around it some other way.
+
 Check for Python 3.11+, Chrome, 2.4 GHz Wi-Fi, and a USB data cable. Install missing software from official sources. Create a project-specific virtual environment and install source/companion/requirements.txt plus esptool. Ask me for my own Muse conversation URL and let me sign in myself in the dedicated Chrome window. Never request, view, or record passwords or verification codes. Start the Python bridge and wait until speech_ready and muse_ready are both true on its local /health endpoint.
 
 Identify the actual Passport /dev/cu.usbmodem* port; ask me to select it if there are multiple candidates. Before flashing, show me the device, port, image path, and SHA-256, then explicitly ask for my approval. Do not flash or erase the whole chip without approval. Once approved, write the merged image at 0x0 and verify success and device startup.

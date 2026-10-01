@@ -102,6 +102,34 @@ class WebSession:
                 return last
         raise RuntimeError('Muse 回复等待超时。请在 Mac 查看，不会自动重发。')
 
+def clear_stale_profile_lock(profile):
+    """Drop a SingletonLock left behind by a browser that already exited.
+
+    If Chrome dies mid-launch (for example while Muse is redirecting through
+    its anti-bot challenge) it can leave this symlink pointing at a dead pid.
+    Every later launch then fails, muse_ready stays false forever, and the
+    terminal only ever shows "check the Mac bridge and Muse page".
+    """
+    lock = Path(profile) / 'SingletonLock'
+    try:
+        if not lock.is_symlink():
+            return
+        pid = os.readlink(lock).rsplit('-', 1)[-1]
+        if not pid.isdigit():
+            return
+        try:
+            os.kill(int(pid), 0)
+            return
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            return
+        lock.unlink()
+        print('Cleared stale browser profile lock (pid %s).' % pid, flush=True)
+    except OSError:
+        pass
+
+
 class MuseWeb:
     def __init__(self, target, profile):
         self.target = validate_url(target)
@@ -116,6 +144,7 @@ class MuseWeb:
         self.profile.mkdir(parents=True, exist_ok=True)
         os.chmod(self.profile, 0o700)
         while True:
+            clear_stale_profile_lock(self.profile)
             try:
                 async with async_playwright() as playwright:
                     self.context = await playwright.chromium.launch_persistent_context(
